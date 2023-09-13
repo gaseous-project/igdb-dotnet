@@ -23,6 +23,6 @@ jobs:
       - name: Pack
         run: dotnet pack -c Release IGDB/IGDB.csproj /p:Version=${VERSION} --output .
       - name: Push
-        run: dotnet nuget push IGDB.${VERSION}.nupkg --source "https://nuget.pkg.github.com/gaseous-project/index.json" --api-key ${NUGET_TOKEN}
+        run: dotnet nuget push gaseous.IGDB.${VERSION}.nupkg --source "https://nuget.pkg.github.com/gaseous-project/index.json" --api-key ${NUGET_TOKEN}
         env:
           NUGET_TOKEN: ${{ secrets.NUGETKEY }}
