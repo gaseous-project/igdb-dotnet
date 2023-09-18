@@ -26,3 +26,5 @@ jobs:
         run: dotnet nuget push gaseous.IGDB.${VERSION}.nupkg --source "https://nuget.pkg.github.com/gaseous-project/index.json" --api-key ${NUGET_TOKEN}
         env:
           NUGET_TOKEN: ${{ secrets.NUGETKEY }}
+      - name: Push to NuGet
+        run: dotnet nuget push gaseous.IGDB.${VERSION}.nupkg --api-key ${{secrets.NUGETPUBLISHKEY}} --source "https://api.nuget.org/v3/index.json" --skip-duplicate
