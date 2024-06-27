@@ -21,8 +21,6 @@ namespace IGDB.Models
 
     public string Checksum { get; set; }
 
-    public IdentityOrValue<Collection> Collection { get; set; }
-
     public IdentitiesOrValues<Collection> Collections { get; set; }
 
     public IdentityOrValue<Cover> Cover { get; set; }
@@ -31,15 +29,13 @@ namespace IGDB.Models
 
     public IdentitiesOrValues<Game> Dlcs { get; set; }
 
-    public IdentitiesOrValues<Game> Expandedgames { get; set; }
+    public IdentitiesOrValues<Game> ExpandedGames { get; set; }
 
     public IdentitiesOrValues<Game> Expansions { get; set; }
 
     public IdentitiesOrValues<ExternalGame> ExternalGames { get; set; }
 
     public DateTimeOffset? FirstReleaseDate { get; set; }
-
-    public int? Follows { get; set; }
 
     public IdentitiesOrValues<Game> Forks { get; set; }
 

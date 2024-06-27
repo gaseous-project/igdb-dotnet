@@ -1,17 +1,18 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using static IGDB.Serialization.LambdaActivator;
 
-namespace IGDB
+namespace IGDB.Serialization
 {
   public class IdentityConverter : JsonConverter
   {
     public override bool CanConvert(Type objectType)
     {
-      return IsAssignableToGenericType(objectType, typeof(IdentityOrValue<>)) ||
-      IsAssignableToGenericType(objectType, typeof(IdentitiesOrValues<>));
+      return IsIdentityOrValue(objectType) || IsIdentitiesOrValues(objectType);
     }
 
     public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
@@ -24,7 +25,7 @@ namespace IGDB
       var expandedType = objectType.GetGenericArguments()[0];
       var value = reader.Value;
 
-      if (IsAssignableToGenericType(objectType, typeof(IdentitiesOrValues<>)))
+      if (IsIdentitiesOrValues(objectType))
       {
         if (reader.TokenType != JsonToken.StartArray)
         {
@@ -48,28 +49,33 @@ namespace IGDB
           }
         }
 
+        var valuesActivator = GetValuesActivator(objectType);
+        var identitiesActivator = GetIdentitiesActivator(objectType);
+
         // If any are objects, it means the IDs should be ignored
         if (values.All(v => v.GetType().IsAssignableFrom(typeof(long))))
         {
-          return Activator.CreateInstance(objectType, values.Cast<long>().ToArray());
+          return identitiesActivator(values.Cast<long>().ToArray());
         }
 
         var objects = values.Where(v => !v.GetType().IsAssignableFrom(typeof(long)));
         var convertedValues = objects.ToArray();
-        var ctor = objectType.GetConstructor(new[] { typeof(object[]) });
-        return ctor.Invoke(new[] { convertedValues });
+        return valuesActivator(new[] { convertedValues });
       }
-      else if (IsAssignableToGenericType(objectType, typeof(IdentityOrValue<>)))
+      else if (IsIdentityOrValue(objectType))
       {
+        var identityActivator = GetIdentityActivator(objectType);
+        var valueActivator = GetValueActivator(objectType);
+
         if (reader.TokenType == JsonToken.StartObject)
         {
           // objects
-          return Activator.CreateInstance(objectType, serializer.Deserialize(reader, expandedType));
+          return valueActivator(serializer.Deserialize(reader, expandedType));
         }
         else if (reader.TokenType == JsonToken.Integer)
         {
           // int ids
-          return Activator.CreateInstance(objectType, (long)reader.Value);
+          return identityActivator((long)reader.Value);
         }
       }
 
@@ -82,11 +88,11 @@ namespace IGDB
       {
         dynamic identity = value;
 
-        if (IsAssignableToGenericType(value.GetType(), typeof(IdentitiesOrValues<>)))
+        if (IsIdentitiesOrValues(value.GetType()))
         {
           serializer.Serialize(writer, identity.Ids ?? identity.Values ?? null);
         }
-        else if (IsAssignableToGenericType(value.GetType(), typeof(IdentityOrValue<>)))
+        else if (IsIdentityOrValue(value.GetType()))
         {
           serializer.Serialize(writer, identity.Id ?? identity.Value ?? null);
         }
@@ -97,25 +103,73 @@ namespace IGDB
       }
     }
 
-    public static bool IsAssignableToGenericType(Type givenType, Type genericType)
+    private static readonly string IdentitiesOrValuesName = typeof(IdentitiesOrValues<>).Name;
+    private static readonly string IdentityOrValueName = typeof(IdentityOrValue<>).Name;
+
+    public static bool IsIdentityOrValue(Type givenType)
     {
-      var interfaceTypes = givenType.GetInterfaces();
+      return givenType.Name.Contains(IdentityOrValueName);
+    }
 
-      foreach (var it in interfaceTypes)
-      {
-        if (it.IsGenericType && it.GetGenericTypeDefinition() == genericType)
-          return true;
-      }
+    public static bool IsIdentitiesOrValues(Type givenType)
+    {
+      return givenType.Name.Contains(IdentitiesOrValuesName);
+    }
 
-      if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
-        return true;
+    private static readonly ConcurrentDictionary<Type, ObjectActivator> identitiesActivators
+            = new ConcurrentDictionary<Type, ObjectActivator>();
+    private static readonly ConcurrentDictionary<Type, ObjectActivator> valuesActivators
+        = new ConcurrentDictionary<Type, ObjectActivator>();
+    private static readonly ConcurrentDictionary<Type, ObjectActivator> identityActivators
+        = new ConcurrentDictionary<Type, ObjectActivator>();
+    private static readonly ConcurrentDictionary<Type, ObjectActivator> valueActivators
+        = new ConcurrentDictionary<Type, ObjectActivator>();
 
-      Type baseType = givenType.BaseType;
-      if (baseType == null) return false;
+    public static ObjectActivator GetIdentitiesActivator(Type objectType)
+    {
+      return identitiesActivators.GetOrAdd(objectType, CreateIdentitiesActivator);
+    }
 
-      return IsAssignableToGenericType(baseType, genericType);
+    public static ObjectActivator GetValuesActivator(Type objectType)
+    {
+      return valuesActivators.GetOrAdd(objectType, CreateValuesActivator);
+    }
+
+    public static ObjectActivator GetIdentityActivator(Type objectType)
+    {
+      return identityActivators.GetOrAdd(objectType, CreateIdentityActivator);
+    }
+
+    public static ObjectActivator GetValueActivator(Type objectType)
+    {
+      return valueActivators.GetOrAdd(objectType, CreateValueActivator);
+    }
+
+    private static ObjectActivator CreateIdentitiesActivator(Type objectType)
+    {
+      ConstructorInfo ctor = objectType.GetConstructors().Skip(1).First();
+      return GetActivator(ctor);
+    }
+
+    private static ObjectActivator CreateValuesActivator(Type objectType)
+    {
+      ConstructorInfo ctor = objectType.GetConstructors().Skip(2).First();
+      return GetActivator(ctor);
+    }
+
+    private static ObjectActivator CreateIdentityActivator(Type objectType)
+    {
+      ConstructorInfo ctor = objectType.GetConstructors().Skip(1).First();
+      return GetActivator(ctor);
+    }
+
+    private static ObjectActivator CreateValueActivator(Type objectType)
+    {
+      ConstructorInfo ctor = objectType.GetConstructors().Skip(2).First();
+      return GetActivator(ctor);
     }
   }
+
 
 
 }

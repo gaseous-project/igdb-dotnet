@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using IGDB.Models;
-using RestEase;
 using Xunit;
 
 namespace IGDB.Tests
@@ -96,6 +95,69 @@ namespace IGDB.Tests
 
       Assert.NotNull(game.CreatedAt);
       Assert.True(game.CreatedAt.Value.Year > 1970);
+    }
+
+    [Fact]
+    public async Task ShouldReturnGameWithPortsBundlesRemastersAndExpandedGames()
+    {
+      var games = await _api.QueryAsync<Game>(IGDBClient.Endpoints.Games, "fields id,ports,bundles,remasters,expanded_games; where id = 358;");
+
+      Assert.NotNull(games);
+
+      var game = games[0];
+
+      Assert.NotEmpty(game.Ports.Ids);
+      Assert.NotEmpty(game.Bundles.Ids);
+      Assert.NotEmpty(game.Remasters.Ids);
+      Assert.NotEmpty(game.ExpandedGames.Ids);
+    }
+
+    [Fact]
+    public async Task ShouldReturnGameWithRemakes()
+    {
+      var games = await _api.QueryAsync<Game>(IGDBClient.Endpoints.Games, "fields id,remakes; where id = 974;");
+
+      Assert.NotNull(games);
+
+      var game = games[0];
+
+      Assert.NotEmpty(game.Remakes.Ids);
+    }
+
+    [Fact]
+    public async Task ShouldReturnGameWithExpansions()
+    {
+      var games = await _api.QueryAsync<Game>(IGDBClient.Endpoints.Games, "fields id,expansions; where id = 1939;");
+
+      Assert.NotNull(games);
+
+      var game = games[0];
+
+      Assert.NotEmpty(game.Expansions.Ids);
+    }
+
+    [Fact]
+    public async Task ShouldReturnGameWithStandaloneExpansions()
+    {
+      var games = await _api.QueryAsync<Game>(IGDBClient.Endpoints.Games, "fields id,standalone_expansions; where id = 14813;");
+
+      Assert.NotNull(games);
+
+      var game = games[0];
+
+      Assert.NotEmpty(game.StandaloneExpansions.Ids);
+    }
+
+    [Fact]
+    public async Task ShouldReturnGameWithDlc()
+    {
+      var games = await _api.QueryAsync<Game>(IGDBClient.Endpoints.Games, "fields id,dlcs; where id = 18968;");
+
+      Assert.NotNull(games);
+
+      var game = games[0];
+
+      Assert.NotEmpty(game.Dlcs.Ids);
     }
     
     [Fact]
