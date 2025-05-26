@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using IGDB.Models;
 using IGDB.Serialization;
+using Microsoft.Extensions.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using Polly;
 using RestEase;
+using RestEase.Implementation;
 
 namespace IGDB
 {
@@ -87,16 +91,40 @@ namespace IGDB
     /// <returns></returns>
     public IGDBClient(string clientId, string clientSecret) :
      this(clientId, clientSecret,
-        new InMemoryTokenStore())
+        new InMemoryTokenStore(), null)
+    {
+    }
+    
+    /// <summary>
+    /// Create a IGDB API client based on a custom-created RestEase client. Adds required
+    /// JSON serializer settings on top of any existing settings. Pass in your own token store (default is in-memory).
+    /// </summary>
+    /// <returns></returns>
+    public IGDBClient(string clientId, string clientSecret, ITokenStore tokenStore) :
+     this(clientId, clientSecret,
+        tokenStore, null)
     {
     }
 
-    /// <summary>
-    /// Create a IGDB API client based on a custom-created RestEase client. Adds required
-    /// JSON serializer settings on top of any existing settings.
+    /// Initializes a new custom instance of the <see cref="IGDBClient"/> class.
     /// </summary>
-    /// <returns></returns>
-    public IGDBClient(string clientId, string clientSecret, ITokenStore tokenStore)
+    /// <param name="clientId">
+    /// The IGDB client ID. You can find this in the IGDB developer portal.
+    /// </param>
+    /// <param name="clientSecret">
+    /// The IGDB client secret. You can find this in the IGDB developer portal.
+    /// </param>
+    /// <param name="tokenStore">
+    /// The token store implementation for storing and retrieving OAuth tokens. 
+    /// Pass <c>InMemoryTokenStore</c> if you do not have a custom store implemented.
+    /// </param>
+    /// <param name="policy">
+    /// An optional Polly <see cref="IAsyncPolicy{HttpResponseMessage}"/> to apply to HTTP requests for resilience (e.g., retries, circuit breakers).
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="clientId"/>, <paramref name="clientSecret"/>, or <paramref name="tokenStore"/> is <c>null</c>.
+    /// </exception>
+    public IGDBClient(string clientId, string clientSecret, ITokenStore tokenStore, IAsyncPolicy<HttpResponseMessage> policy)
     {
       if (clientId == null)
       {
@@ -112,9 +140,7 @@ namespace IGDB
           "A ITokenStore is required. Pass InMemoryTokenStore if you do not have a custom store implemented.");
       }
 
-      _tokenManager = new TokenManager(tokenStore, new TwitchOAuthClient(clientId, clientSecret));
-
-      var api = new RestClient("https://api.igdb.com/v4", async (request, cancellationToken) =>
+      RequestModifier requestModifier = async (request, cancellationToken) =>
       {
         var twitchToken = await _tokenManager.AcquireTokenAsync();
 
@@ -123,13 +149,33 @@ namespace IGDB
           request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
             "Bearer", twitchToken.AccessToken);
         }
+      };
 
-      })
+      _tokenManager = new TokenManager(tokenStore, new TwitchOAuthClient(clientId, clientSecret));
+
+      RestClient client = null;
+      if (policy != null)
       {
-        JsonSerializerSettings = DefaultJsonSerializerSettings
-      }.For<IGDBApi>();
+        client = new RestClient("https://api.igdb.com/v4", new PolicyHttpMessageHandler(policy)
+        {
+          InnerHandler = new ModifyingClientHttpHandler(requestModifier)
+        });
+      }
+      else
+      {
+        client = new RestClient("https://api.igdb.com/v4", requestModifier);
+      }
+
+      client.JsonSerializerSettings = DefaultJsonSerializerSettings;
+
+      var api = client.For<IGDBApi>();
       api.ClientId = clientId;
       _api = api;
+    }
+
+    public static IGDBClient CreateWithDefaults(string clientId, string clientSecret)
+    {
+      return new IGDBClient(clientId, clientSecret, new InMemoryTokenStore(), ApiPolicy.DefaultApiPolicy);
     }
 
     public async Task<T[]> QueryAsync<T>(string endpoint, string query = null)
@@ -252,23 +298,34 @@ namespace IGDB
     public static class Endpoints
     {
       public const string AgeRating = "age_ratings";
-      public const string AgeRatingContentDescriptions = "age_rating_content_descriptions";
+      public const string AgeRatingCategories = "age_rating_categories";
+      public const string AgeRatingContentDescriptionsV2 = "age_rating_content_descriptions_v2";
+      public const string AgeRatingOrganizations = "age_rating_organizations";
       public const string AlternativeNames = "alternative_names";
       public const string Artworks = "artworks";
       public const string Characters = "characters";
+      public const string CharacterGenders = "character_genders";
       public const string CharacterMugShots = "character_mug_shots";
+      public const string CharacterSpecies = "character_species";
       public const string Collections = "collections";
       public const string Companies = "companies";
+      public const string CompanyStatus = "company_status";
       public const string CompanyWebsites = "company_websites";
       public const string CompanyLogos = "company_logos";
       public const string Covers = "covers";
+      public const string DateFormats = "date_formats";
       public const string ExternalGames = "external_games";
+      public const string ExternalGameSources = "external_game_sources";
       public const string Franchies = "franchises";
       public const string Games = "games";
       public const string GameEngines = "game_engines";
       public const string GameEngineLogos = "game_engine_logos";
       public const string GameVersions = "game_versions";
       public const string GameModes = "game_modes";
+      public const string GameReleaseFormats = "game_release_formats";
+      public const string GameStatuses = "game_statuses";
+      public const string GameTimeToBeats = "game_time_to_beats";
+      public const string GameTypes = "game_types";
       public const string GameVersionFeatures = "game_version_features";
       public const string GameVersionFeatureValues = "game_version_feature_values";
       public const string GameVideos = "game_videos";
@@ -279,18 +336,21 @@ namespace IGDB
       public const string Platforms = "platforms";
       public const string PlatformFamilies = "platform_families";
       public const string PlatformLogos = "platform_logos";
+      public const string PlatformTypes = "platform_types";
       public const string PlatformVersions = "platform_versions";
       public const string PlatformVersionCompanies = "platform_version_companies";
       public const string PlatformVersionReleaseDates = "platform_version_release_dates";
       public const string PlatformWebsites = "platform_websites";
       public const string PlayerPerspectives = "player_perspectives";
-	  public const string PopularityPrimitives = "popularity_primitives";
-	  public const string PopularityTypes = "popularity_types";
+      public const string PopularityPrimitives = "popularity_primitives";
+      public const string PopularityTypes = "popularity_types";
       public const string ReleaseDates = "release_dates";
+      public const string ReleaseDateRegions = "release_date_regions";
       public const string Screenshots = "screenshots";
       public const string Search = "search";
       public const string Themes = "themes";
       public const string Websites = "websites";
+      public const string WebsiteTypes = "website_types";
     }
   }
 }
