@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
     <NuspecProperties>version=$(PackageVersion)</NuspecProperties>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
@@ -9,14 +8,14 @@
     <OutputPath>lib</OutputPath>
 
     <!-- Nuget Publishing -->
-    <PackageId>gaseous.IGDB</PackageId>
-    <Description>This is a fork of Karmran Ayub's IGDB APIv4 games database .NET Standard 2.0 wrapper. For detailed usage, see https://github.com/kamranayub/igdb-dotnet/blob/master/README.md</Description>
+    <PackageId>IGDB</PackageId>
+    <Description> IGDB APIv4 games database .NET Standard 2.0 wrapper. For detailed usage, see https://github.com/kamranayub/igdb-dotnet/blob/master/README.md</Description>
     <Authors>Kamran Ayub</Authors>
     <Copyright>Copyright 2020-2022 Kamran Ayub</Copyright>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/gaseous-project/igdb-dotnet</PackageProjectUrl>
+    <PackageProjectUrl>http://github.com/kamranayub/igdb-dotnet</PackageProjectUrl>
     <RepositoryBranch>main</RepositoryBranch>
-    <RepositoryUrl>https://github.com/gaseous-project/igdb-dotnet</RepositoryUrl>
+    <RepositoryUrl>http://github.com/kamranayub/igdb-dotnet</RepositoryUrl>
     <PackageTags>igdb dotnet games giantbomb gog steam origin</PackageTags>
     <PackageIconUrl>https://www.igdb.com/apple-touch-icon-72x72.png</PackageIconUrl>
     <PackageReleaseNotes>See https://github.com/kamranayub/igdb-dotnet/releases</PackageReleaseNotes>
@@ -38,7 +37,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" developmentDependency="true" />
-    <PackageReference Include="RestEase" Version="1.6.4" />
+    <PackageReference Include="RestEase" Version="1.5.5" />
   </ItemGroup>
 
 </Project>
