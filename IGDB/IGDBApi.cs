@@ -94,7 +94,7 @@ namespace IGDB
         new InMemoryTokenStore(), null)
     {
     }
-    
+
     /// <summary>
     /// Create a IGDB API client based on a custom-created RestEase client. Adds required
     /// JSON serializer settings on top of any existing settings. Pass in your own token store (default is in-memory).
@@ -303,6 +303,7 @@ namespace IGDB
       public const string AgeRatingOrganizations = "age_rating_organizations";
       public const string AlternativeNames = "alternative_names";
       public const string Artworks = "artworks";
+      public const string ArtworkTypes = "artwork_types";
       public const string Characters = "characters";
       public const string CharacterGenders = "character_genders";
       public const string CharacterMugShots = "character_mug_shots";
